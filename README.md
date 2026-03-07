@@ -57,11 +57,3 @@ server.start()
 
 - [GitHub Issues](https://github.com/agroqirax/timberborn-http/issues)
 - [Discord](https://discord.gg/timberborn)
-
-## Commands
-
-- `python -m venv .venv`
-- `pip install -r requirements.txt`
-- `pip install -e .`
-- `python -m build`
-- `python3 -m twine upload --repository testpypi dist/*`

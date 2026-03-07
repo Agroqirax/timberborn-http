@@ -17,7 +17,7 @@ def on_func(name):
 server.on("HTTP Adapter 1", on_func)
 ```
 
-It is also possible to use decorations to register callbacks
+It is also possible to use decorators to register callbacks
 
 ```python
 @server.on("HTTP Adapter 1")  # type: ignore

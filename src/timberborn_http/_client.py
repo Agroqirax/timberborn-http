@@ -34,7 +34,7 @@ class Adapter:
     api: "TimberbornAPI" = field(repr=False)
 
     def get_state(self) -> bool:
-        """Get the lever state from the API."""
+        """Get the adapter state from the API."""
         self.state = self.api.get_state(self.name)
         return self.state
 
