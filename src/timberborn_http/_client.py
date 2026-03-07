@@ -1,19 +1,14 @@
 from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional, overload
 import logging
 import threading
 import time
 import urllib.parse
 
 import requests
-from flask import Flask
+from flask import Flask, cli
 
 logger = logging.getLogger("timberborn_http")
-
-
-# ============================================================
-# Data Classes
-# ============================================================
 
 
 @dataclass
@@ -61,8 +56,6 @@ class Lever:
     springReturn: bool
     api: "TimberbornAPI" = field(repr=False)
 
-    # ------------------------------------------
-
     def on(self) -> None:
         """Switch this lever ON."""
         self.api.switch_on(self.name)
@@ -92,11 +85,6 @@ class Lever:
         return self.state
 
 
-# ============================================================
-# API Client
-# ============================================================
-
-
 class TimberbornAPI:
     """
     Client for interacting with the Timberborn HTTP automation API.
@@ -112,8 +100,6 @@ class TimberbornAPI:
             Base URL of the Timberborn API.
         """
         self.host = host.rstrip("/")
-
-    # ------------------------------------------
 
     def _encode(self, name: str) -> str:
         """URL-encode a block name."""
@@ -135,9 +121,6 @@ class TimberbornAPI:
                 f"Failed to connect to Timberborn API at {self.host}. "
                 f"Is Timberborn running & the API started?"
             ) from e
-    # ------------------------------------------
-    # Query
-    # ------------------------------------------
 
     def get_adapters(self) -> List[Adapter]:
         """
@@ -171,10 +154,6 @@ class TimberbornAPI:
 
         return [Lever(**lever, api=self) for lever in data]
 
-    # ------------------------------------------
-    # State helpers
-    # ------------------------------------------
-
     def get_state(self, name: str) -> bool:
         """
         Get the state of a lever or adapter.
@@ -198,10 +177,6 @@ class TimberbornAPI:
                 return lever.state
 
         raise ValueError(f"No adapter or lever named '{name}' found")
-
-    # ------------------------------------------
-    # Control
-    # ------------------------------------------
 
     def switch_on(self, name: str) -> None:
         """
@@ -263,10 +238,6 @@ class TimberbornAPI:
         name = self._encode(name)
         self._request(f"/api/color/{name}/{hex_color}")
 
-    # ------------------------------------------
-    # Polling Watcher
-    # ------------------------------------------
-
     def watch_adapter(
         self,
         name: str,
@@ -307,11 +278,6 @@ class TimberbornAPI:
         thread.start()
 
 
-# ============================================================
-# Webhook Server
-# ============================================================
-
-
 class TimberbornWebhookServer:
     """
     Webhook server that receives adapter events from Timberborn.
@@ -338,37 +304,37 @@ class TimberbornWebhookServer:
         self.off_callbacks: Dict[str, Callable[[str], None]] = {}
 
         self.app.add_url_rule("/on/<name>", "on_event",
-                              self._on_event, methods=["GET", "POST"])
+                              lambda name: self._event("ON", name),
+                              methods=["GET", "POST"])
+
         self.app.add_url_rule("/off/<name>", "off_event",
-                              self._off_event, methods=["GET", "POST"])
+                              lambda name: self._event("OFF", name),
+                              methods=["GET", "POST"])
 
-    # ------------------------------------------
-
-    def _on_event(self, name: str) -> str:
+    def _event(self, state: str, name: str):
         name = urllib.parse.unquote(name)
 
-        logger.info("Adapter '%s' turned ON", name)
+        logger.info("Adapter '%s' turned %s", name, state)
 
-        if name in self.on_callbacks:
-            self.on_callbacks[name](name)
+        callbacks = self.on_callbacks if state == "ON" else self.off_callbacks
+
+        if name in callbacks:
+            callbacks[name](name)
 
         return "OK"
 
-    def _off_event(self, name: str) -> str:
-        name = urllib.parse.unquote(name)
+    @overload
+    def on(self, adapter_name: str) -> Callable[[
+        Callable[[str], None]], Callable[[str], None]]: ...
 
-        logger.info("Adapter '%s' turned OFF", name)
+    @overload
+    def on(self, adapter_name: str, func: Callable[[str], None]) -> None: ...
 
-        if name in self.off_callbacks:
-            self.off_callbacks[name](name)
-
-        return "OK"
-
-    # ------------------------------------------
-    # Registration
-    # ------------------------------------------
-
-    def on(self, adapter_name: str, func: Optional[Callable[[str], None]] = None):
+    def on(
+        self,
+        adapter_name: str,
+        func: Optional[Callable[[str], None]] = None
+    ) -> Optional[Callable[[Callable[[str], None]], Callable[[str], None]]]:
         """
         Register a callback when an adapter turns ON.
 
@@ -376,16 +342,27 @@ class TimberbornWebhookServer:
         """
 
         if func is None:
-
-            def decorator(f):
+            def decorator(f: Callable[[str], None]) -> Callable[[str], None]:
                 self.on_callbacks[adapter_name] = f
                 return f
 
             return decorator
 
         self.on_callbacks[adapter_name] = func
+        return None
 
-    def off(self, adapter_name: str, func: Optional[Callable[[str], None]] = None):
+    @overload
+    def off(self, adapter_name: str) -> Callable[[
+        Callable[[str], None]], Callable[[str], None]]: ...
+
+    @overload
+    def off(self, adapter_name: str, func: Callable[[str], None]) -> None: ...
+
+    def off(
+        self,
+        adapter_name: str,
+        func: Optional[Callable[[str], None]] = None
+    ) -> Optional[Callable[[Callable[[str], None]], Callable[[str], None]]]:
         """
         Register a callback when an adapter turns OFF.
 
@@ -393,25 +370,30 @@ class TimberbornWebhookServer:
         """
 
         if func is None:
-
-            def decorator(f):
+            def decorator(f: Callable[[str], None]) -> Callable[[str], None]:
                 self.off_callbacks[adapter_name] = f
                 return f
 
             return decorator
 
         self.off_callbacks[adapter_name] = func
-
-    # ------------------------------------------
+        return None
 
     def start(self) -> None:
-        """Start the webhook server in a background thread."""
-
+        """Start webhook server. Can take a second or two to start."""
         logger.info("Starting webhook server on %s:%s", self.host, self.port)
 
+        cli.show_server_banner = lambda *x: None
+
+        logging.getLogger("werkzeug").setLevel(logging.ERROR)
+
         thread = threading.Thread(
-            target=self.app.run,
-            kwargs={"host": self.host, "port": self.port},
+            target=lambda: self.app.run(
+                host=self.host,
+                port=self.port,
+                debug=False,
+                use_reloader=False
+            ),
             daemon=True,
         )
 

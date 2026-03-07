@@ -48,12 +48,9 @@ def handle_on(name):
 server.start()
 ```
 
-## Documentation & Examples
-
-- [API Usage](/examples/api): Direct control and polling
-- [Webhook Usage](/examples/webhooks): Real-time event handling
+More examples & details in the examples folder
 
 ## Getting Help
 
 - [GitHub Issues](https://github.com/agroqirax/timberborn-http/issues)
-- [Discord](https://discord.gg/timberborn)
+- [Discord](https://discord.gg/timberborn) in `#⏱️automation` or `#🤖mod-creators`

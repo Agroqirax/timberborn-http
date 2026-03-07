@@ -19,6 +19,7 @@ Now you can perform actions with the API like:
 - `api.get_state("HTTP Lever 1")` Get the state of a lever or adapter
 
 "HTTP Lever 1" is, of course, substitutable by any lever name.
+`get_state(name)` also works for HTTP Adapters
 
 If you prefer you can also use OOP like this:
 
@@ -29,3 +30,5 @@ lever1 = next(lever for lever in levers if lever.name ==
 
 lever1.on()
 ```
+
+More examples in this folder

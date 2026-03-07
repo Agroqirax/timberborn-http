@@ -6,20 +6,20 @@ Demonstrates using decorators to register event handlers.
 from timberborn_http import TimberbornWebhookServer
 
 server = TimberbornWebhookServer()
+server.start()
 
 
-@server.on("HTTP Adapter 1")  # type: ignore
+@server.on("HTTP Adapter 1")
 def on_func(name):
-    print(f"Pump {name} turned ON!")
+    print(f"Adapter {name} turned ON!")
 
 
-@server.off("HTTP Adapter 1")  # type: ignore
+@server.off("HTTP Adapter 1")
 def off_func(name):
-    print(f"Pump {name} turned OFF!")
+    print(f"Adapter {name} turned OFF!")
 
 
 # Start the server
-server.start()
 print("Webhook server running. Press Ctrl+C to stop.")
 while True:
     pass
