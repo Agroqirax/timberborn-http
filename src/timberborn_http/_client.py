@@ -31,6 +31,12 @@ class Adapter:
 
     name: str
     state: bool
+    api: "TimberbornAPI" = field(repr=False)
+
+    def get_state(self) -> bool:
+        """Get the lever state from the API."""
+        self.state = self.api.get_state(self.name)
+        return self.state
 
 
 @dataclass
@@ -80,9 +86,10 @@ class Lever:
         """
         self.api.set_color(self.name, hex_color)
 
-    def refresh(self) -> None:
-        """Refresh the lever state from the API."""
-        self.state = self.api.get_lever_state(self.name)
+    def get_state(self) -> bool:
+        """Get the lever state from the API."""
+        self.state = self.api.get_state(self.name)
+        return self.state
 
 
 # ============================================================
@@ -112,6 +119,22 @@ class TimberbornAPI:
         """URL-encode a block name."""
         return urllib.parse.quote(name)
 
+    def _request(self, path: str):
+        """
+        Perform a GET request with better error handling.
+        """
+        url = f"{self.host}{path}"
+
+        try:
+            r = requests.get(url)
+            r.raise_for_status()
+            return r
+
+        except requests.exceptions.ConnectionError as e:
+            raise ConnectionError(
+                f"Failed to connect to Timberborn API at {self.host}. "
+                f"Is Timberborn running & the API started?"
+            ) from e
     # ------------------------------------------
     # Query
     # ------------------------------------------
@@ -127,9 +150,7 @@ class TimberbornAPI:
         """
         logger.debug("Fetching adapters")
 
-        r = requests.get(f"{self.host}/api/adapters")
-        r.raise_for_status()
-
+        r = self._request("/api/adapters")
         data = r.json()
 
         return [Adapter(**adapter) for adapter in data]
@@ -145,9 +166,7 @@ class TimberbornAPI:
         """
         logger.debug("Fetching levers")
 
-        r = requests.get(f"{self.host}/api/levers")
-        r.raise_for_status()
-
+        r = self._request("/api/levers")
         data = r.json()
 
         return [Lever(**lever, api=self) for lever in data]
@@ -156,45 +175,29 @@ class TimberbornAPI:
     # State helpers
     # ------------------------------------------
 
-    def get_adapter_state(self, name: str) -> bool:
+    def get_state(self, name: str) -> bool:
         """
-        Get adapter state.
+        Get the state of a lever or adapter.
 
         Parameters
         ----------
         name : str
-            Adapter name.
+            Block name.
 
         Returns
         -------
         bool
-            Adapter state.
+            Current state.
         """
         for adapter in self.get_adapters():
             if adapter.name == name:
                 return adapter.state
 
-        raise ValueError(f"Adapter '{name}' not found")
-
-    def get_lever_state(self, name: str) -> bool:
-        """
-        Get lever state.
-
-        Parameters
-        ----------
-        name : str
-            Lever name.
-
-        Returns
-        -------
-        bool
-            Lever state.
-        """
         for lever in self.get_levers():
             if lever.name == name:
                 return lever.state
 
-        raise ValueError(f"Lever '{name}' not found")
+        raise ValueError(f"No adapter or lever named '{name}' found")
 
     # ------------------------------------------
     # Control
@@ -212,7 +215,7 @@ class TimberbornAPI:
         logger.info("Switching ON lever '%s'", name)
 
         name = self._encode(name)
-        requests.get(f"{self.host}/api/switch-on/{name}").raise_for_status()
+        self._request(f"/api/switch-on/{name}")
 
     def switch_off(self, name: str) -> None:
         """
@@ -226,7 +229,7 @@ class TimberbornAPI:
         logger.info("Switching OFF lever '%s'", name)
 
         name = self._encode(name)
-        requests.get(f"{self.host}/api/switch-off/{name}").raise_for_status()
+        self._request(f"/api/switch-off/{name}")
 
     def toggle(self, name: str) -> None:
         """
@@ -239,7 +242,7 @@ class TimberbornAPI:
         """
         logger.info("Toggling lever '%s'", name)
 
-        if self.get_lever_state(name):
+        if self.get_state(name):
             self.switch_off(name)
         else:
             self.switch_on(name)
@@ -258,9 +261,7 @@ class TimberbornAPI:
         logger.info("Setting color of '%s' to %s", name, hex_color)
 
         name = self._encode(name)
-        requests.get(
-            f"{self.host}/api/color/{name}/{hex_color}"
-        ).raise_for_status()
+        self._request(f"/api/color/{name}/{hex_color}")
 
     # ------------------------------------------
     # Polling Watcher
@@ -291,7 +292,7 @@ class TimberbornAPI:
             last_state: Optional[bool] = None
 
             while True:
-                state = self.get_adapter_state(name)
+                state = self.get_state(name)
 
                 if last_state is None:
                     last_state = state

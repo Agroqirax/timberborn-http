@@ -5,10 +5,9 @@ Supports both direct API control and webhook-based event handling.
 
 ## Features
 
-- **Control levers and adapters** in your Timberborn game
-- **Poll or watch** for state changes
-- **Webhook support** for real-time events
-- **Multiple interaction styles**: OOP, decorators, and direct function calls
+- Get the state of levers & adapters from timberborn
+- Update the state of levers
+- Receive webhooks and trigger actions
 
 ## Installation
 
@@ -31,8 +30,8 @@ for lever in levers:
     print(lever.name, lever.state)
 
 # Control a lever
-api.switch_on("Main Water Pump")
-api.set_color("Main Water Pump", "ff0000")
+api.switch_on("HTTP Lever 1")
+api.set_color("HTTP Lever 1", "ff0000")
 ```
 
 ### 2. Webhook Events
@@ -42,7 +41,7 @@ from timberborn_http import TimberbornWebhookServer
 
 server = TimberbornWebhookServer()
 
-@server.on("Main Water Pump")
+@server.on("HTTP Lever 1")
 def handle_on(name):
     print(f"{name} turned ON!")
 
@@ -66,4 +65,3 @@ server.start()
 - `pip install -e .`
 - `python -m build`
 - `python3 -m twine upload --repository testpypi dist/*`
-- `python3 -m pip install --index-url https://test.pypi.org/simple/ --no-deps timberborn_http`

@@ -17,8 +17,8 @@ def off_func(name):
 
 
 # Register callbacks
-server.on("Main Water Pump", on_func)
-server.off("Main Water Pump", off_func)
+server.on("HTTP Adapter 1", on_func)
+server.off("HTTP Adapter 1", off_func)
 
 # Start the server
 server.start()

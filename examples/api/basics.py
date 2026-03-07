@@ -44,8 +44,9 @@ sleep(1)
 
 api.toggle("HTTP Lever 1")
 print("Toggled state of 'HTTP Lever 1'")
-
 print()
 
-print(f"State of 'HTTP Adapter 1': {api.get_adapter_state("HTTP Adapter 1")}")
-print(f"State of 'HTTP Lever 1': {api.get_lever_state("HTTP Lever 1")}")
+sleep(1)
+
+print(f"State of 'HTTP Adapter 1': {api.get_state("HTTP Adapter 1")}")
+print(f"State of 'HTTP Lever 1': {api.get_state("HTTP Lever 1")}")
