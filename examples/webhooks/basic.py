@@ -18,7 +18,7 @@ def off_func(name):
 
 # Register callbacks
 server.on_event("HTTP Adapter 1", on_func)
-server.off("HTTP Adapter 1", off_func)
+server.off_event("HTTP Adapter 1", off_func)
 
 # Start the server
 print("Webhook server running. Press Ctrl+C to stop.")

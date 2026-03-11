@@ -13,7 +13,7 @@ def on_func(name):
     print(f"Adapter {name} turned ON!")
 
 
-@server.off("HTTP Adapter 1")
+@server.off_event("HTTP Adapter 1")
 def off_func(name):
     print(f"Adapter {name} turned OFF!")
 
