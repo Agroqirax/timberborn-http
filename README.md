@@ -39,13 +39,14 @@ api.set_color("HTTP Lever 1", "ff0000")
 ```python
 from timberborn_http import TimberbornWebhookServer
 
-server = TimberbornWebhookServer()
+server = TimberbornWebhookServer(port=8081)
 
-@server.on("HTTP Lever 1")
+@server.on_event("HTTP Lever 1")
 def handle_on(name):
     print(f"{name} turned ON!")
 
-server.start()
+while True:
+    pass
 ```
 
 More examples & details in the examples folder

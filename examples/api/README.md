@@ -10,25 +10,26 @@ api = TimberbornAPI("http://localhost:8080")
 
 Now you can perform actions with the API like:
 
-- `api.get_adapters()` Get list of adapters
-- `api.get_levers()` Get list of levers
-- `api.switch_on("HTTP Lever 1")` Switch lever on
-- `api.switch_off("HTTP Lever 1")` Switch lever off
-- `api.toggle("HTTP Lever 1")` Toggle lever
-- `api.set_color("HTTP Lever 1")` Set lever color
-- `api.get_state("HTTP Lever 1")` Get the state of a lever or adapter
-
-"HTTP Lever 1" is, of course, substitutable by any lever name.
-`get_state(name)` also works for HTTP Adapters
+| Function                                               | Comment                 |
+| ------------------------------------------------------ | ----------------------- |
+| `api.get_adapters() -> List[Adapter]             `     | Get list of adapters    |
+| `api.get_levers() -> List[Lever]                 `     | Get list of levers      |
+| `api.get_adapter(name: str) -> Adapter           `     | Get adapter             |
+| `api.get_lever(name: str) -> Lever               `     | Get lever               |
+| `api.switch_on(name: str) -> None                `     | Switch lever on         |
+| `api.switch_off(name: str) -> None               `     | Switch lever off        |
+| `api.toggle(name: str) -> None                   `     | Toggle lever            |
+| `api.set_color(name: str) -> None                `     | Set lever color         |
+| `api.get_adapter_state(name: str) -> bool        `     | Get adapter state       |
+| `api.get_lever_state(name: str) -> bool          `     | Get lever state         |
+| `api.get_lever_spring_return(self, name: str) -> bool` | Get lever spring return |
 
 If you prefer you can also use OOP like this:
 
 ```python
-levers = api.get_levers()
-lever1 = next(lever for lever in levers if lever.name ==
-              "HTTP Lever 1")
+lever = api.get_lever("HTTP Lever 1")
 
-lever1.on()
+lever.switch_on()
 ```
 
 More examples in this folder

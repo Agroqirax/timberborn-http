@@ -11,213 +11,100 @@ from flask import Flask, cli
 logger = logging.getLogger("timberborn_http")
 
 
-@dataclass
-class Adapter:
-    """
-    Represents a Timberborn HTTP Adapter block.
-
-    Attributes
-    ----------
-    name : str
-        Name of the adapter block in-game.
-    state : bool
-        Current state of the adapter (True = ON).
-    """
-
-    name: str
-    state: bool
-    api: "TimberbornAPI" = field(repr=False)
-
-    def get_state(self) -> bool:
-        """Get the adapter state from the API."""
-        self.state = self.api.get_state(self.name)
-        return self.state
-
-
-@dataclass
-class Lever:
-    """
-    Represents a Timberborn HTTP Lever block.
-
-    Attributes
-    ----------
-    name : str
-        Name of the lever block in-game.
-    state : bool
-        Current state of the lever (True = ON).
-    springReturn : bool
-        Whether the lever automatically resets.
-    api : TimberbornAPI
-        Reference to the API client used for control.
-    """
-
-    name: str
-    state: bool
-    springReturn: bool
-    api: "TimberbornAPI" = field(repr=False)
-
-    def on(self) -> None:
-        """Switch this lever ON."""
-        self.api.switch_on(self.name)
-
-    def off(self) -> None:
-        """Switch this lever OFF."""
-        self.api.switch_off(self.name)
-
-    def toggle(self) -> None:
-        """Toggle this lever."""
-        self.api.toggle(self.name)
-
-    def set_color(self, hex_color: str) -> None:
-        """
-        Set the lever color.
-
-        Parameters
-        ----------
-        hex_color : str
-            Hex color code (e.g. 'ff0000').
-        """
-        self.api.set_color(self.name, hex_color)
-
-    def get_state(self) -> bool:
-        """Get the lever state from the API."""
-        self.state = self.api.get_state(self.name)
-        return self.state
-
-
 class TimberbornAPI:
     """
     Client for interacting with the Timberborn HTTP automation API.
     """
 
     def __init__(self, host: str = "http://localhost:8080"):
-        """
-        Initialize the API client.
-
-        Parameters
-        ----------
-        host : str
-            Base URL of the Timberborn API.
-        """
         self.host = host.rstrip("/")
 
     def _encode(self, name: str) -> str:
-        """URL-encode a block name."""
-        return urllib.parse.quote(name)
+        return urllib.parse.quote(name, safe="")
 
-    def _request(self, path: str):
-        """
-        Perform a GET request with better error handling.
-        """
+    def _request(self, path: str) -> requests.Response:
         url = f"{self.host}{path}"
-
         try:
-            r = requests.get(url)
+            r = requests.get(url, timeout=5)
             r.raise_for_status()
             return r
-
         except requests.exceptions.ConnectionError as e:
             raise ConnectionError(
                 f"Failed to connect to Timberborn API at {self.host}. "
                 f"Is Timberborn running & the API started?"
             ) from e
+        except requests.exceptions.Timeout as e:
+            raise TimeoutError(
+                f"Request to {url} timed out."
+            ) from e
+        except requests.exceptions.HTTPError as e:
+            raise RuntimeError(
+                f"HTTP error from Timberborn API: {r.status_code} {r.reason} — {url}"
+            ) from e
 
-    def get_adapters(self) -> List[Adapter]:
-        """
-        Retrieve all adapters.
+    # ------------------------------------------------------------------
+    # Fetchers
+    # ------------------------------------------------------------------
 
-        Returns
-        -------
-        List[Adapter]
-            List of adapters.
-        """
-        logger.debug("Fetching adapters")
+    def get_adapters(self) -> List["TimberbornAPI.Adapter"]:
+        """Retrieve all adapters."""
+        logger.debug("Fetching all adapters")
+        data = self._request("/api/adapters").json()
+        return [self.Adapter(self, d["name"]) for d in data]
 
-        r = self._request("/api/adapters")
-        data = r.json()
+    def get_levers(self) -> List["TimberbornAPI.Lever"]:
+        """Retrieve all levers."""
+        logger.debug("Fetching all levers")
+        data = self._request("/api/levers").json()
+        return [self.Lever(self, d["name"]) for d in data]
 
-        return [Adapter(**adapter) for adapter in data]
+    def get_adapter(self, name: str) -> "TimberbornAPI.Adapter":
+        """Retrieve a single adapter by name."""
+        logger.debug("Fetching adapter '%s'", name)
+        # validates existence
+        self._request(f"/api/adapters/{self._encode(name)}")
+        return self.Adapter(self, name)
 
-    def get_levers(self) -> List[Lever]:
-        """
-        Retrieve all levers.
+    def get_lever(self, name: str) -> "TimberbornAPI.Lever":
+        """Retrieve a single lever by name."""
+        logger.debug("Fetching lever '%s'", name)
+        # validates existence
+        self._request(f"/api/levers/{self._encode(name)}")
+        return self.Lever(self, name)
 
-        Returns
-        -------
-        List[Lever]
-            List of lever objects.
-        """
-        logger.debug("Fetching levers")
+    # ------------------------------------------------------------------
+    # Low-level control (used by Adapter/Lever, but also callable directly)
+    # ------------------------------------------------------------------
 
-        r = self._request("/api/levers")
-        data = r.json()
+    def get_adapter_state(self, name: str) -> bool:
+        """Fetch the live state of an adapter."""
+        data = self._request(f"/api/adapters/{self._encode(name)}").json()
+        return bool(data["state"])
 
-        return [Lever(**lever, api=self) for lever in data]
+    def get_lever_state(self, name: str) -> bool:
+        """Fetch the live state of a lever."""
+        data = self._request(f"/api/levers/{self._encode(name)}").json()
+        return bool(data["state"])
 
-    def get_state(self, name: str) -> bool:
-        """
-        Get the state of a lever or adapter.
-
-        Parameters
-        ----------
-        name : str
-            Block name.
-
-        Returns
-        -------
-        bool
-            Current state.
-        """
-        for adapter in self.get_adapters():
-            if adapter.name == name:
-                return adapter.state
-
-        for lever in self.get_levers():
-            if lever.name == name:
-                return lever.state
-
-        raise ValueError(f"No adapter or lever named '{name}' found")
+    def get_lever_spring_return(self, name: str) -> bool:
+        """Fetch the live springReturn value of a lever."""
+        data = self._request(f"/api/levers/{self._encode(name)}").json()
+        return bool(data["springReturn"])
 
     def switch_on(self, name: str) -> None:
-        """
-        Switch a lever ON.
-
-        Parameters
-        ----------
-        name : str
-            Lever name.
-        """
+        """Switch a lever ON."""
         logger.info("Switching ON lever '%s'", name)
-
-        name = self._encode(name)
-        self._request(f"/api/switch-on/{name}")
+        self._request(f"/api/switch-on/{self._encode(name)}")
 
     def switch_off(self, name: str) -> None:
-        """
-        Switch a lever OFF.
-
-        Parameters
-        ----------
-        name : str
-            Lever name.
-        """
+        """Switch a lever OFF."""
         logger.info("Switching OFF lever '%s'", name)
-
-        name = self._encode(name)
-        self._request(f"/api/switch-off/{name}")
+        self._request(f"/api/switch-off/{self._encode(name)}")
 
     def toggle(self, name: str) -> None:
-        """
-        Toggle a lever state.
-
-        Parameters
-        ----------
-        name : str
-            Lever name.
-        """
+        """Toggle a lever between ON and OFF."""
         logger.info("Toggling lever '%s'", name)
-
-        if self.get_state(name):
+        if self.get_lever_state(name):
             self.switch_off(name)
         else:
             self.switch_on(name)
@@ -228,54 +115,90 @@ class TimberbornAPI:
 
         Parameters
         ----------
-        name : str
-            Lever name.
         hex_color : str
-            Hex color (e.g. '00ff00').
+            Hex color without '#' (e.g. '00ff00').
         """
-        logger.info("Setting color of '%s' to %s", name, hex_color)
+        hex_color = hex_color.lstrip("#")
+        if len(hex_color) != 6 or not all(c in "0123456789abcdefABCDEF" for c in hex_color):
+            raise ValueError(
+                f"Invalid hex color: '{hex_color}'. Expected 6 hex digits.")
+        logger.info("Setting color of '%s' to #%s", name, hex_color)
+        self._request(f"/api/color/{self._encode(name)}/{hex_color}")
 
-        name = self._encode(name)
-        self._request(f"/api/color/{name}/{hex_color}")
+    # ------------------------------------------------------------------
+    # Inner classes
+    # ------------------------------------------------------------------
 
-    def watch_adapter(
-        self,
-        name: str,
-        callback: Callable[[str, bool], None],
-        poll_interval: float = 1.0,
-    ) -> None:
+    class Adapter:
         """
-        Watch an adapter and trigger a callback when its state changes.
+        Represents a Timberborn HTTP Adapter block.
 
-        Parameters
+        Attributes
         ----------
         name : str
-            Adapter name.
-        callback : Callable[[str, bool], None]
-            Function called with (name, state).
-        poll_interval : float
-            Seconds between polls.
+            Name of the adapter block in-game.
+        state : bool
+            Live-fetched state of the adapter (True = ON). Calls the API on access.
         """
 
-        def watcher():
-            logger.info("Watching adapter '%s'", name)
+        def __init__(self, api: "TimberbornAPI", name: str):
+            self._api = api
+            self.name = name
 
-            last_state: Optional[bool] = None
+        @property
+        def state(self) -> bool:
+            """Live state — fetches from API on every access."""
+            return self._api.get_adapter_state(self.name)
 
-            while True:
-                state = self.get_state(name)
+        def __repr__(self) -> str:
+            return f"Adapter(name={self.name!r})"
 
-                if last_state is None:
-                    last_state = state
+    class Lever:
+        """
+        Represents a Timberborn HTTP Lever block.
 
-                if state != last_state:
-                    callback(name, state)
-                    last_state = state
+        Attributes
+        ----------
+        name : str
+            Name of the lever block in-game.
+        state : bool
+            Live-fetched state of the lever (True = ON). Calls the API on access.
+        springReturn : bool
+            Live-fetched springReturn flag. Calls the API on access.
+        """
 
-                time.sleep(poll_interval)
+        def __init__(self, api: "TimberbornAPI", name: str):
+            self._api = api
+            self.name = name
 
-        thread = threading.Thread(target=watcher, daemon=True)
-        thread.start()
+        @property
+        def state(self) -> bool:
+            """Live state — fetches from API on every access."""
+            return self._api.get_lever_state(self.name)
+
+        @property
+        def spring_return(self) -> bool:
+            """Live springReturn — fetches from API on every access."""
+            return self._api.get_lever_spring_return(self.name)
+
+        def switch_on(self) -> None:
+            """Switch this lever ON."""
+            self._api.switch_on(self.name)
+
+        def switch_off(self) -> None:
+            """Switch this lever OFF."""
+            self._api.switch_off(self.name)
+
+        def toggle(self) -> None:
+            """Toggle this lever."""
+            self._api.toggle(self.name)
+
+        def set_color(self, hex_color: str) -> None:
+            """Set the lever color (hex without '#', e.g. 'ff0000')."""
+            self._api.set_color(self.name, hex_color)
+
+        def __repr__(self) -> str:
+            return f"Lever(name={self.name!r})"
 
 
 class TimberbornWebhookServer:
@@ -311,6 +234,8 @@ class TimberbornWebhookServer:
                               lambda name: self._event("OFF", name),
                               methods=["GET", "POST"])
 
+        self.start()
+
     def _event(self, state: str, name: str):
         name = urllib.parse.unquote(name)
 
@@ -324,13 +249,14 @@ class TimberbornWebhookServer:
         return "OK"
 
     @overload
-    def on(self, adapter_name: str) -> Callable[[
+    def on_event(self, adapter_name: str) -> Callable[[
         Callable[[str], None]], Callable[[str], None]]: ...
 
     @overload
-    def on(self, adapter_name: str, func: Callable[[str], None]) -> None: ...
+    def on_event(self, adapter_name: str,
+                 func: Callable[[str], None]) -> None: ...
 
-    def on(
+    def on_event(
         self,
         adapter_name: str,
         func: Optional[Callable[[str], None]] = None
@@ -352,13 +278,14 @@ class TimberbornWebhookServer:
         return None
 
     @overload
-    def off(self, adapter_name: str) -> Callable[[
+    def off_event(self, adapter_name: str) -> Callable[[
         Callable[[str], None]], Callable[[str], None]]: ...
 
     @overload
-    def off(self, adapter_name: str, func: Callable[[str], None]) -> None: ...
+    def off_event(self, adapter_name: str,
+                  func: Callable[[str], None]) -> None: ...
 
-    def off(
+    def off_event(
         self,
         adapter_name: str,
         func: Optional[Callable[[str], None]] = None

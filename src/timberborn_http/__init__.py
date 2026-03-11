@@ -10,5 +10,5 @@ api.get_levers()
 :license: GNU GPL-3.0, see LICENSE for more details.
 """
 
-from ._client import TimberbornAPI, TimberbornWebhookServer, Adapter, Lever
-__all__ = ["TimberbornAPI", "TimberbornWebhookServer", "Adapter", "Lever"]
+from ._client import TimberbornAPI, TimberbornWebhookServer
+__all__ = ["TimberbornAPI", "TimberbornWebhookServer"]

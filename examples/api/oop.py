@@ -5,18 +5,16 @@ Demonstrates controlling levers as objects.
 """
 from timberborn_http import TimberbornAPI  # Import module
 
-api = TimberbornAPI("http://localhost:8080")  # Start API
+api = TimberbornAPI("http://192.168.1.65:8080")  # Start API
 
-levers = api.get_levers()  # Get levers
-lever1 = next(lever for lever in levers if lever.name ==
-              "HTTP Lever 1")  # Get 'HTTP Lever 1'
+lever1 = api.get_lever("HTTP Lever 1")
 
 # Control the lever using object methods
-lever1.on()  # Turn lever on
-# lever.off()
-# lever.toggle()
+lever1.switch_on()
+lever1.switch_off()
+lever1.toggle()
 
 lever1.set_color("00ff00")  # Set lever color to #00ff00 (green)
-lever1.get_state()  # Refresh state
+
 # Print current state
 print(f"'HTTP Lever 1' state: {'ON' if lever1.state else 'OFF'}")

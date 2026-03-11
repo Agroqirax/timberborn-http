@@ -6,10 +6,9 @@ Demonstrates using decorators to register event handlers.
 from timberborn_http import TimberbornWebhookServer
 
 server = TimberbornWebhookServer()
-server.start()
 
 
-@server.on("HTTP Adapter 1")
+@server.on_event("HTTP Adapter 1")
 def on_func(name):
     print(f"Adapter {name} turned ON!")
 
