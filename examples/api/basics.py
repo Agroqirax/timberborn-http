@@ -6,7 +6,7 @@ Demonstrates listing and controlling levers and adapters.
 from timberborn_http import TimberbornAPI  # Import module
 from time import sleep
 
-api = TimberbornAPI("http://192.168.1.65:8080")  # Start API
+api = TimberbornAPI("http://localhost:8080")  # Start API
 
 # List all levers
 print("Levers:")
@@ -26,5 +26,6 @@ print()
 api.toggle("HTTP Lever 1")
 
 api.set_color("HTTP Lever 1", "00ff00")
+api.set_color("HTTP Lever 1", "red")
 
 print(f"State of HTTP Adapter 1: {api.get_adapter("HTTP Adapter 1").state}")

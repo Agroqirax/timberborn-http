@@ -6,8 +6,8 @@ build-backend = "setuptools.build_meta"
 where = ["src"]
 
 [project]
-name = "timberborn_http"
-version = "0.0.4"
+name = "timberborn-http"
+version = "0.0.5"
 authors = [
   { name="Agroqirax", email="124404386+Agroqirax@users.noreply.github.com" },
 ]
@@ -26,5 +26,5 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/agroqirax/timberborn_http"
-Issues = "https://github.com/agroqirax/timberborn_http/issues"
+Homepage = "https://github.com/agroqirax/timberborn-http"
+Issues = "https://github.com/agroqirax/timberborn-http/issues"

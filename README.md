@@ -5,9 +5,9 @@ Supports both direct API control and webhook-based event handling.
 
 ## Features
 
-- Get the state of levers & adapters from timberborn
-- Update the state of levers
-- Receive webhooks and trigger actions
+- Get the state of levers and adapters from Timberborn
+- Change lever states
+- Receive webhook events and trigger actions
 
 ## Installation
 
@@ -17,7 +17,7 @@ pip install timberborn-http
 
 ## Quickstart
 
-### 1. Direct API Control
+### Direct API Control
 
 ```python
 from timberborn_http import TimberbornAPI
@@ -25,18 +25,18 @@ from timberborn_http import TimberbornAPI
 api = TimberbornAPI("http://localhost:8080")
 
 # Get all levers
-levers = api.get_levers()
-for lever in levers:
-    print(lever.name, lever.state)
+for lever in api.get_levers():
+    print(f"Lever {lever.name}is currently {lever.state}")
 
 # Control a lever
 api.switch_on("HTTP Lever 1")
 api.set_color("HTTP Lever 1", "ff0000")
 ```
 
-### 2. Webhook Events
+### Webhook Events
 
 ```python
+import time
 from timberborn_http import TimberbornWebhookServer
 
 server = TimberbornWebhookServer(port=8081)
@@ -46,10 +46,10 @@ def handle_on(name):
     print(f"{name} turned ON!")
 
 while True:
-    pass
+    time.sleep(1)
 ```
 
-More examples & details in the examples folder
+More examples & details in the [examples](https://github.com/Agroqirax/timberborn-http/tree/main/examples) folder
 
 ## Getting Help
 

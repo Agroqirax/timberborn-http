@@ -8,6 +8,21 @@ from flask import Flask, cli
 
 logger = logging.getLogger("timberborn_http")
 
+STANDARD_COLORS = {
+    "red": "ff0000",
+    "green": "00ff00",
+    "blue": "0000ff",
+    "yellow": "ffff00",
+    "cyan": "00ffff",
+    "magenta": "ff00ff",
+    "white": "ffffff",
+    "black": "000000",
+    "orange": "ffa500",
+    "purple": "800080",
+    "pink": "ffc0cb",
+    "gray": "808080",
+}
+
 
 class TimberbornAPI:
     """
@@ -114,9 +129,13 @@ class TimberbornAPI:
         Parameters
         ----------
         hex_color : str
-            Hex color without '#' (e.g. '00ff00').
+            Hex color (e.g. '00ff00') or common color name (e.g. red, magenta)
         """
         hex_color = hex_color.lstrip("#")
+
+        if hex_color.lower() in STANDARD_COLORS:
+            hex_color = STANDARD_COLORS[hex_color]
+
         if len(hex_color) != 6 or not all(c in "0123456789abcdefABCDEF" for c in hex_color):
             raise ValueError(
                 f"Invalid hex color: '{hex_color}'. Expected 6 hex digits.")

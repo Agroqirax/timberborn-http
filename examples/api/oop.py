@@ -5,7 +5,7 @@ Demonstrates controlling levers as objects.
 """
 from timberborn_http import TimberbornAPI  # Import module
 
-api = TimberbornAPI("http://192.168.1.65:8080")  # Start API
+api = TimberbornAPI("http://localhost:8080")  # Start API
 
 lever1 = api.get_lever("HTTP Lever 1")
 
