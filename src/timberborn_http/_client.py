@@ -1,10 +1,12 @@
 from typing import Callable, Dict, List, Optional, overload
 import logging
 import threading
+import time
 import urllib.parse
 
 import requests
 from flask import Flask, cli
+from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
 
 logger = logging.getLogger("timberborn_http")
 
@@ -31,6 +33,66 @@ class TimberbornAPI:
 
     def __init__(self, host: str = "http://localhost:8080"):
         self.host = host.rstrip("/")
+
+    @classmethod
+    def discover(cls, timeout: float = 3.0) -> List[TimberbornAPI]:
+        """Scan the local network for Timberborn instance via mDNS/Zeroconf.
+
+        Requires the **RemoteApiAccess** mod (≥ 1.0.12.6) running in-game.
+
+        Parameters
+        ----------
+        timeout:
+            How long to listen in seconds (default 3).
+
+        Returns
+        -------
+        list[TimberbornAPI]
+            One ready-to-use :class:`TimberbornAPI` per discovered instance.
+            Empty list if none were found.
+
+        Examples
+        --------
+        >>> instances = TimberbornAPI.discover()
+        >>> api = instances[0]
+        """
+        found: List[str] = []
+
+        class _Listener(ServiceListener):
+            def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
+                info = zc.get_service_info(type_, name)
+                if info is None:
+                    return
+                addresses = info.parsed_addresses()
+                if not addresses:
+                    return
+                txt = {
+                    k.decode() if isinstance(k, bytes) else k:
+                    v.decode() if isinstance(v, bytes) else v
+                    for k, v in info.properties.items()
+                }
+                base_url = txt.get("base_url", f"http://{addresses[0]}:{info.port}")
+                location = txt.get("location_name", name)
+                version = txt.get("version", "?")
+                print(f"  Found: {location}  {base_url}  ({version})")
+                found.append(base_url.rstrip("/"))
+
+            def update_service(self, zc, type_, name): pass
+            def remove_service(self, zc, type_, name): pass
+
+        print(f"Scanning for Timberborn instances ({timeout}s)…")
+        zc = Zeroconf()
+        browser = ServiceBrowser(zc, "_timberborn._tcp.local.", _Listener())
+        try:
+            time.sleep(timeout)
+        finally:
+            browser.cancel()
+            zc.close()
+
+        if not found:
+            print("  No instances found.")
+
+        return [cls(url) for url in found]
 
     def _encode(self, name: str) -> str:
         return urllib.parse.quote(name, safe="")

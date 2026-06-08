@@ -26,7 +26,7 @@ api = TimberbornAPI("http://localhost:8080")
 
 # Get all levers
 for lever in api.get_levers():
-    print(f"Lever {lever.name}is currently {lever.state}")
+    print(f"Lever {lever.name} is currently {lever.state}")
 
 # Control a lever
 api.switch_on("HTTP Lever 1")
@@ -47,6 +47,15 @@ def handle_on(name):
 
 while True:
     time.sleep(1)
+```
+
+### Discover instances
+
+```python
+from timberborn_http import TimberbornAPI
+
+instances = TimberbornAPI.discover(timeout=3.0)
+api = instances[0]
 ```
 
 More examples & details in the [examples](https://github.com/Agroqirax/timberborn-http/tree/main/examples) folder

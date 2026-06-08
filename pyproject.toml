@@ -7,7 +7,7 @@ where = ["src"]
 
 [project]
 name = "timberborn-http"
-version = "0.0.5"
+version = "0.0.6"
 authors = [
   { name="Agroqirax", email="124404386+Agroqirax@users.noreply.github.com" },
 ]
@@ -22,7 +22,8 @@ license = "GPL-3.0-or-later"
 license-files = ["LICEN[CS]E*"]
 dependencies = [
     "requests",
-    "flask"
+    "flask",
+    "zeroconf
 ]
 
 [project.urls]

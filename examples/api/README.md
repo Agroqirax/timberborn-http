@@ -54,4 +54,16 @@ lever = api.get_lever("HTTP Lever 1")
 lever.switch_on()
 ```
 
+## Discover instances (zeroconf/mDNS)
+
+Instead of entering the IP manually you can search for instances.
+This requires [Remote API Access](https://steamcommunity.com/sharedfiles/filedetails/?id=3682669754) version `1.0.13.0`
+
+```python
+from timberborn_http import TimberbornAPI
+
+instances = TimberbornAPI.discover(timeout=3.0)
+api = instances[0]
+```
+
 You can find more examples in this folder
