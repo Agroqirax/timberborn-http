@@ -3,9 +3,9 @@ import logging
 import threading
 import time
 import urllib.parse
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import requests
-from flask import Flask, cli
 from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
 
 logger = logging.getLogger("timberborn_http")
@@ -286,46 +286,52 @@ class TimberbornWebhookServer:
     """
 
     def __init__(self, host: str = "0.0.0.0", port: int = 8081):
-        """
-        Create a webhook server.
-
-        Parameters
-        ----------
-        host : str
-            Host to bind to.
-        port : int
-            Port to listen on.
-        """
-
         self.host = host
         self.port = port
-
-        self.app = Flask("timberborn_webhooks")
-
         self.on_callbacks: Dict[str, Callable[[str], None]] = {}
         self.off_callbacks: Dict[str, Callable[[str], None]] = {}
-
-        self.app.add_url_rule("/on/<name>", "on_event",
-                              lambda name: self._event("ON", name),
-                              methods=["GET", "POST"])
-
-        self.app.add_url_rule("/off/<name>", "off_event",
-                              lambda name: self._event("OFF", name),
-                              methods=["GET", "POST"])
-
         self.start()
 
-    def _event(self, state: str, name: str):
+    def _event(self, state: str, name: str) -> str:
         name = urllib.parse.unquote(name)
-
         logger.info("Adapter '%s' turned %s", name, state)
-
         callbacks = self.on_callbacks if state == "ON" else self.off_callbacks
-
         if name in callbacks:
             callbacks[name](name)
-
         return "OK"
+
+    def _make_handler(self):
+        server = self  # capture for closure
+
+        class _Handler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                self._handle()
+
+            def do_POST(self):
+                self._handle()
+
+            def do_PUT(self):
+                self._handle()
+
+            def _handle(self):
+                # Parse path: /on/<name> or /off/<name>
+                path = self.path.split("?")[0]  # strip query string
+                parts = path.strip("/").split("/", 1)
+
+                if len(parts) == 2 and parts[0] in ("on", "off"):
+                    state = "ON" if parts[0] == "on" else "OFF"
+                    server._event(state, parts[1])
+                    self.send_response(200)
+                    self.end_headers()
+                    self.wfile.write(b"OK")
+                else:
+                    self.send_response(404)
+                    self.end_headers()
+
+            def log_message(self, format, *args):
+                pass  # suppress access log (mirrors werkzeug suppression)
+
+        return _Handler
 
     @overload
     def on_event(self, adapter_name: str) -> Callable[[
@@ -386,21 +392,8 @@ class TimberbornWebhookServer:
         return None
 
     def start(self) -> None:
-        """Start webhook server. Can take a second or two to start."""
+        """Start webhook server in a background daemon thread."""
         logger.info("Starting webhook server on %s:%s", self.host, self.port)
-
-        cli.show_server_banner = lambda *x: None
-
-        logging.getLogger("werkzeug").setLevel(logging.ERROR)
-
-        thread = threading.Thread(
-            target=lambda: self.app.run(
-                host=self.host,
-                port=self.port,
-                debug=False,
-                use_reloader=False
-            ),
-            daemon=True,
-        )
-
+        srv = HTTPServer((self.host, self.port), self._make_handler())
+        thread = threading.Thread(target=srv.serve_forever, daemon=True)
         thread.start()

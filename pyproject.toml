@@ -22,8 +22,7 @@ license = "GPL-3.0-or-later"
 license-files = ["LICEN[CS]E*"]
 dependencies = [
     "requests",
-    "flask",
-    "zeroconf
+    "zeroconf"
 ]
 
 [project.urls]
