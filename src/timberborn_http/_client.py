@@ -35,10 +35,10 @@ class TimberbornAPI:
         self.host = host.rstrip("/")
 
     @classmethod
-    def discover(cls, timeout: float = 3.0) -> List[TimberbornAPI]:
+    def discover(cls, timeout: float = 3.0) -> List["TimberbornAPI"]:
         """Scan the local network for Timberborn instance via mDNS/Zeroconf.
 
-        Requires the **RemoteApiAccess** mod (≥ 1.0.12.6) running in-game.
+        Requires the **RemoteApiAccess** mod (≥ 1.0.13.0) running in-game.
 
         Parameters
         ----------

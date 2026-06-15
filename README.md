@@ -8,12 +8,15 @@ Supports both direct API control and webhook-based event handling.
 - Get the state of levers and adapters from Timberborn
 - Change lever states
 - Receive webhook events and trigger actions
+- Find timberborn instances via zeroconf/mDNS
 
 ## Installation
 
 ```bash
 pip install timberborn-http
 ```
+
+[pypi.org/project/timberborn-http](https://pypi.org/project/timberborn-http)
 
 ## Quickstart
 
